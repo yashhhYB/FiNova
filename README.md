@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 Quick Start
+##  Quick Start
 
 ```bash
 # 1. Clone the repository
@@ -52,7 +52,7 @@ Open **http://localhost:5173** in your browser. No backend or API keys required 
 
 ---
 
-## 🔐 Role-Based Access Control (RBAC)
+##  Role-Based Access Control (RBAC)
 
 | Feature             | Viewer | Admin |
 |---------------------|--------|-------|
@@ -67,7 +67,7 @@ Role preference is persisted to `localStorage`.
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ### File Structure
 
@@ -110,7 +110,7 @@ A simulated `delay()` creates realistic async latency for loading spinners, demo
 
 ---
 
-## 🎨 Design System
+##  Design System
 
 | Token | Light | Dark |
 |-------|-------|------|
@@ -128,7 +128,7 @@ A simulated `delay()` creates realistic async latency for loading spinners, demo
 
 ---
 
-## 🧰 Tech Stack
+##  Tech Stack
 
 | Tool | Purpose |
 |------|---------|
@@ -150,7 +150,7 @@ A simulated `delay()` creates realistic async latency for loading spinners, demo
 
 ---
 
-## 🧪 Edge Cases Handled
+##  Edge Cases Handled
 
 - Empty state views on zero transactions or filtered results
 - NaN / zero income guards in savings-rate calculation
