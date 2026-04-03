@@ -2,6 +2,8 @@
 
 > A production-grade, role-based personal finance dashboard built with React 18, Vite, and Tailwind CSS.
 
+> Live On  **[http://fi-nova.netlify.app](https://fi-nova.netlify.app/)** in your browser.
+
 ---
 
 ##  Quick Start
