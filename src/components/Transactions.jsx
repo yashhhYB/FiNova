@@ -2,10 +2,11 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFinance } from '../data';
 import { formatCurrency, formatDate } from '../utils';
 import { EmptyState } from './Dashboard';
+import { useToast } from './Toast';
 import {
   Plus, Search, ArrowUpDown, Receipt, X,
   SlidersHorizontal, UploadCloud, Pencil, Trash2, ChevronDown,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, CheckCircle2, Clock, AlertCircle,
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -26,8 +27,14 @@ const STATUS_STYLES = {
   Failed: 'bg-rose-50 text-rose-700 border border-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20',
 };
 
+const STATUS_ICONS = {
+  Success: <CheckCircle2 size={11} className="inline mr-1" />,
+  Pending: <Clock size={11} className="inline mr-1" />,
+  Failed: <AlertCircle size={11} className="inline mr-1" />,
+};
+
 // ── Transaction Modal ─────────────────────────────────────────────────────────
-function TransactionModal({ open, onClose, editing }) {
+function TransactionModal({ open, onClose, editing, onSuccess }) {
   const { addTransaction, updateTransaction, role } = useFinance();
   const firstRef = useRef(null);
   const blank = {
@@ -68,8 +75,13 @@ function TransactionModal({ open, onClose, editing }) {
     setSaving(true);
     try {
       const payload = { ...form, amount, date: new Date(form.date).toISOString() };
-      if (editing) await updateTransaction({ ...editing, ...payload });
-      else await addTransaction(payload);
+      if (editing) {
+        await updateTransaction({ ...editing, ...payload });
+        onSuccess?.('Transaction updated successfully!', 'success');
+      } else {
+        await addTransaction(payload);
+        onSuccess?.(`${form.type === 'income' ? 'Income' : 'Expense'} added!`, 'success');
+      }
       onClose();
     } finally {
       setSaving(false);
@@ -91,7 +103,7 @@ function TransactionModal({ open, onClose, editing }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-bg text-dim hover:text-ink hover:bg-border/60 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-full bg-bg text-dim hover:text-ink hover:bg-border/60 transition-all duration-200 hover:scale-110 hover:rotate-90 active:scale-90"
           >
             <X size={15} />
           </button>
@@ -100,12 +112,12 @@ function TransactionModal({ open, onClose, editing }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Type toggle */}
           <div className="p-1 bg-bg border border-border rounded-xl flex relative">
-            <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-surface shadow-sm transition-all duration-300 ${form.type === 'expense' ? 'left-1' : 'left-[calc(50%+3px)]'}`} />
+            <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg bg-surface shadow-sm transition-all duration-350 ease-[cubic-bezier(0.4,0,0.2,1)] ${form.type === 'expense' ? 'left-1' : 'left-[calc(50%+3px)]'}`} />
             {['expense', 'income'].map(t => (
               <button
                 key={t} type="button"
                 onClick={() => set('type', t)}
-                className={`relative flex-1 py-2 rounded-lg text-xs font-bold capitalize z-10 transition-colors ${form.type === t
+                className={`relative flex-1 py-2 rounded-lg text-xs font-bold capitalize z-10 transition-all duration-200 ${form.type === t
                     ? t === 'expense' ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'
                     : 'text-dim hover:text-ink'
                   }`}
@@ -116,18 +128,18 @@ function TransactionModal({ open, onClose, editing }) {
           </div>
 
           {/* Description */}
-          <div>
+          <div className="fade-up-1">
             <label className="block text-[11px] font-bold text-dim uppercase tracking-wider mb-1.5">Description</label>
             <input
               ref={firstRef} required value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="e.g. Monthly Salary, Grocery run…"
-              className="w-full border border-border rounded-xl px-4 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all font-medium text-ink placeholder-dim/50"
+              className="w-full border border-border rounded-xl px-4 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all duration-200 font-medium text-ink placeholder-dim/50 hover:border-border/80 search-input"
             />
           </div>
 
           {/* Amount + Date */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 fade-up-2">
             <div>
               <label className="block text-[11px] font-bold text-dim uppercase tracking-wider mb-1.5">Amount ($)</label>
               <div className="relative">
@@ -136,7 +148,7 @@ function TransactionModal({ open, onClose, editing }) {
                   required type="number" min="0.01" step="0.01"
                   value={form.amount} onChange={e => set('amount', e.target.value)}
                   placeholder="0.00"
-                  className="w-full border border-border rounded-xl pl-7 pr-3 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all font-semibold text-ink tabular-nums"
+                  className="w-full border border-border rounded-xl pl-7 pr-3 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all duration-200 font-semibold text-ink tabular-nums hover:border-border/80 search-input"
                 />
               </div>
             </div>
@@ -145,18 +157,18 @@ function TransactionModal({ open, onClose, editing }) {
               <input
                 required type="date" value={form.date}
                 onChange={e => set('date', e.target.value)}
-                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all font-medium text-ink"
+                className="w-full border border-border rounded-xl px-3 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all duration-200 font-medium text-ink hover:border-border/80 search-input"
               />
             </div>
           </div>
 
           {/* Category */}
-          <div>
+          <div className="fade-up-3">
             <label className="block text-[11px] font-bold text-dim uppercase tracking-wider mb-1.5">Category</label>
             <div className="relative">
               <select
                 value={form.category} onChange={e => set('category', e.target.value)}
-                className="w-full border border-border rounded-xl px-4 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all font-medium text-ink appearance-none cursor-pointer"
+                className="w-full border border-border rounded-xl px-4 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all duration-200 font-medium text-ink appearance-none cursor-pointer hover:border-border/80 search-input"
               >
                 {CATEGORIES.map(c => <option key={c}>{c}</option>)}
               </select>
@@ -167,12 +179,19 @@ function TransactionModal({ open, onClose, editing }) {
           {/* Submit */}
           <button
             type="submit" disabled={saving}
-            className={`w-full py-3 rounded-xl text-sm font-bold transition-all shadow-sm disabled:opacity-60 ${form.type === 'expense'
+            className={`w-full py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-sm disabled:opacity-60 btn-ripple active:scale-98 hover:scale-[1.01] hover:shadow-md fade-up-4 ${form.type === 'expense'
                 ? 'bg-rose-600 hover:bg-rose-700 text-white'
                 : 'bg-brand hover:opacity-90 text-brand-fg'
               }`}
           >
-            {saving ? 'Saving…' : editing ? 'Save Changes' : `Add ${form.type.charAt(0).toUpperCase() + form.type.slice(1)}`}
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full spin-loader" />
+                Saving…
+              </span>
+            ) : (
+              editing ? 'Save Changes' : `Add ${form.type.charAt(0).toUpperCase() + form.type.slice(1)}`
+            )}
           </button>
         </form>
       </div>
@@ -183,13 +202,15 @@ function TransactionModal({ open, onClose, editing }) {
 // ── Transactions Page ─────────────────────────────────────────────────────────
 export function Transactions() {
   const { transactions, role, deleteTransaction, loading } = useFinance();
+  const toast = useToast();
   const [query, setQuery] = useState('');
-  const [filter, setFilter] = useState('all');   // all | income | expense
+  const [filter, setFilter] = useState('all');
   const [filterOpen, setFilterOpen] = useState(false);
   const [sortKey, setSortKey] = useState('date');
   const [sortDir, setSortDir] = useState('desc');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [listKey, setListKey] = useState(0);
 
   const exportCSV = () => {
     const rows = transactions.map(t => [
@@ -205,18 +226,17 @@ export function Transactions() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    toast(`Exported ${transactions.length} transactions as CSV`, 'success');
   };
 
   const list = useMemo(() => {
     let items = filter === 'all' ? [...transactions] : transactions.filter(t => t.type === filter);
-
     if (query) {
       const q = query.toLowerCase();
       items = items.filter(t =>
         t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)
       );
     }
-
     items.sort((a, b) => {
       const diff = sortKey === 'date'
         ? new Date(a.date) - new Date(b.date)
@@ -226,23 +246,39 @@ export function Transactions() {
     return items;
   }, [transactions, query, filter, sortKey, sortDir]);
 
+  // Re-trigger stagger animation on filter/sort change
+  const handleFilter = (f) => {
+    setFilter(f);
+    setFilterOpen(false);
+    setListKey(k => k + 1);
+  };
+
   const toggleSort = (k) => {
     if (sortKey === k) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortKey(k); setSortDir('desc'); }
+    setListKey(k => k + 1);
   };
 
+  const handleDelete = async (t) => {
+    await deleteTransaction(t.id);
+    toast(`"${t.description}" deleted`, 'error');
+    setListKey(k => k + 1);
+  };
   const openEdit = (t) => { setEditing(t); setModalOpen(true); };
   const closeModal = () => { setModalOpen(false); setEditing(null); };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[40vh]">
-        <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin" />
+      <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3 scale-in">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 rounded-full border-2 border-border" />
+          <div className="absolute inset-0 rounded-full border-2 border-brand border-t-transparent spin-loader" />
+        </div>
+        <p className="text-sm text-dim font-medium fade-up-1">Loading transactions…</p>
       </div>
     );
   }
 
-  // Filter label helper
   const filterLabel = filter === 'all' ? 'All Types' : filter.charAt(0).toUpperCase() + filter.slice(1);
 
   return (
@@ -251,16 +287,19 @@ export function Transactions() {
       {/* ── Toolbar ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-5 border-b border-border/40">
         {/* Search */}
-        <div className="relative w-full sm:max-w-xs">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim pointer-events-none" />
+        <div className="relative w-full sm:max-w-xs group">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-dim pointer-events-none transition-colors duration-200 group-focus-within:text-brand" />
           <input
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setListKey(k => k + 1); }}
             placeholder="Search transactions…"
-            className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm bg-bg focus:border-brand focus:ring-2 focus:ring-brand/10 outline-none transition-all font-medium placeholder-dim/60 text-ink"
+            className="w-full border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm bg-bg outline-none transition-all duration-200 font-medium placeholder-dim/60 text-ink hover:border-border/80 focus:border-brand focus:ring-2 focus:ring-brand/10 search-input"
           />
           {query && (
-            <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-ink">
+            <button
+              onClick={() => { setQuery(''); setListKey(k => k + 1); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-dim hover:text-ink transition-all duration-200 hover:scale-110 hover:rotate-90"
+            >
               <X size={13} />
             </button>
           )}
@@ -272,27 +311,27 @@ export function Transactions() {
           <div className="relative">
             <button
               onClick={() => setFilterOpen(v => !v)}
-              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-xs font-bold transition-colors ${filter !== 'all' ? 'border-brand text-brand bg-brand/5' : 'border-border text-ink hover:bg-border/30'
-                }`}
+              className={`flex items-center gap-2 px-4 py-2.5 border rounded-xl text-xs font-bold transition-all duration-200 hover:scale-105 active:scale-95 ${filter !== 'all' ? 'border-brand text-brand bg-brand/5 shadow-sm' : 'border-border text-ink hover:bg-border/30'}`}
             >
-              <SlidersHorizontal size={13} />
+              <SlidersHorizontal size={13} className={`transition-transform duration-300 ${filterOpen ? 'rotate-180' : ''}`} />
               {filterLabel}
-              <ChevronDown size={11} className={`text-dim transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+              <ChevronDown size={11} className={`text-dim transition-transform duration-300 ${filterOpen ? 'rotate-180' : ''}`} />
             </button>
             {filterOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setFilterOpen(false)} />
-                <div className="absolute right-0 top-full mt-1.5 w-40 bg-surface border border-border rounded-xl shadow-pop z-20 py-1.5 overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 w-44 bg-surface border border-border rounded-xl shadow-pop z-20 py-1.5 overflow-hidden dropdown-appear">
                   {[
-                    { id: 'all', label: 'All Types' },
-                    { id: 'income', label: 'Income' },
-                    { id: 'expense', label: 'Expense' },
-                  ].map(({ id, label }) => (
+                    { id: 'all', label: 'All Types', Icon: null },
+                    { id: 'income', label: 'Income', Icon: TrendingUp },
+                    { id: 'expense', label: 'Expense', Icon: TrendingDown },
+                  ].map(({ id, label, Icon }) => (
                     <button
                       key={id}
-                      onClick={() => { setFilter(id); setFilterOpen(false); }}
-                      className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors ${filter === id ? 'text-brand bg-brand/5' : 'text-ink hover:bg-border/40'}`}
+                      onClick={() => handleFilter(id)}
+                      className={`w-full flex items-center gap-2.5 text-left px-4 py-2.5 text-xs font-semibold transition-all duration-150 hover:translate-x-1 ${filter === id ? 'text-brand bg-brand/5' : 'text-ink hover:bg-border/40'}`}
                     >
+                      {Icon && <Icon size={12} />}
                       {label}
                     </button>
                   ))}
@@ -303,18 +342,18 @@ export function Transactions() {
 
           <button
             onClick={exportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-xl text-xs font-bold text-ink hover:bg-border/30 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 border border-border rounded-xl text-xs font-bold text-ink hover:bg-border/30 transition-all duration-200 hover:scale-105 active:scale-95 btn-ripple"
           >
-            <UploadCloud size={13} />
+            <UploadCloud size={13} className="transition-transform duration-300 hover:-translate-y-0.5" />
             Export
           </button>
 
           {role === 'admin' && (
             <button
               onClick={() => { setEditing(null); setModalOpen(true); }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-ink text-surface rounded-xl text-xs font-bold hover:bg-ink/80 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-ink text-surface rounded-xl text-xs font-bold hover:bg-ink/80 transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm btn-ripple"
             >
-              <Plus size={13} />
+              <Plus size={13} className="transition-transform duration-300 group-hover:rotate-90" />
               Add New
             </button>
           )}
@@ -322,20 +361,20 @@ export function Transactions() {
       </div>
 
       {/* ── Summary Pills (mobile) ── */}
-      <div className="flex gap-3 mb-5 sm:hidden">
-        <div className="flex-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 text-center">
+      <div className="flex gap-3 mb-5 sm:hidden stagger-children">
+        <div className="flex-1 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 text-center transition-all duration-200 hover:scale-[1.02]">
           <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wide mb-0.5">Income</p>
           <p className="text-sm font-extrabold text-emerald-700 dark:text-emerald-300">
             {formatCurrency(transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0))}
           </p>
         </div>
-        <div className="flex-1 bg-rose-50 dark:bg-rose-500/10 rounded-xl p-3 text-center">
+        <div className="flex-1 bg-rose-50 dark:bg-rose-500/10 rounded-xl p-3 text-center transition-all duration-200 hover:scale-[1.02]">
           <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wide mb-0.5">Expenses</p>
           <p className="text-sm font-extrabold text-rose-700 dark:text-rose-300">
             {formatCurrency(transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0))}
           </p>
         </div>
-        <div className="flex-1 bg-bg border border-border rounded-xl p-3 text-center">
+        <div className="flex-1 bg-bg border border-border rounded-xl p-3 text-center transition-all duration-200 hover:scale-[1.02]">
           <p className="text-[10px] font-bold text-dim uppercase tracking-wide mb-0.5">Count</p>
           <p className="text-sm font-extrabold text-ink">{list.length}</p>
         </div>
@@ -365,11 +404,16 @@ export function Transactions() {
                     <th
                       key={label}
                       onClick={key ? () => toggleSort(key) : undefined}
-                      className={`py-3.5 px-3 text-[11px] font-bold text-dim uppercase tracking-wider ${key ? 'cursor-pointer hover:text-ink select-none' : ''}`}
+                      className={`py-3.5 px-3 text-[11px] font-bold text-dim uppercase tracking-wider transition-colors duration-200 ${key ? 'cursor-pointer hover:text-ink select-none hover:bg-border/20 rounded-lg' : ''}`}
                     >
                       <span className="flex items-center gap-1.5">
                         {label}
-                        {key && <ArrowUpDown size={11} className={sortKey === key ? 'text-brand' : ''} />}
+                        {key && (
+                          <ArrowUpDown
+                            size={11}
+                            className={`transition-all duration-200 ${sortKey === key ? 'text-brand scale-110' : 'opacity-50'}`}
+                          />
+                        )}
                       </span>
                     </th>
                   ))}
@@ -378,24 +422,24 @@ export function Transactions() {
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody key={listKey} className="stagger-rows">
                 {list.map((t) => {
                   const date = new Date(t.date);
                   const invoiceId = 'PMX' + t.id.slice(0, 5).toUpperCase();
                   const status = getStatus(t.amount);
                   return (
-                    <tr key={t.id} className="group border-b border-border/30 hover:bg-bg/60 transition-colors">
+                    <tr key={t.id} className="group border-b border-border/30 tx-row">
                       {/* Name */}
                       <td className="py-4 px-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold ${t.type === 'income'
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-sm font-bold transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${t.type === 'income'
                               ? 'bg-brand/10 text-brand dark:bg-brand/20'
                               : 'bg-slate-100 text-slate-600 dark:bg-slate-800/80 dark:text-slate-300'
                             }`}>
                             {t.description.charAt(0).toUpperCase()}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-ink leading-none">{t.description}</p>
+                            <p className="text-sm font-bold text-ink leading-none group-hover:text-brand transition-colors duration-200">{t.description}</p>
                             <p className="text-xs text-dim mt-0.5">{t.category}</p>
                           </div>
                         </div>
@@ -411,41 +455,42 @@ export function Transactions() {
                       </td>
                       {/* Invoice */}
                       <td className="py-4 px-3">
-                        <span className="text-xs font-bold text-dim tracking-wide">{invoiceId}</span>
+                        <span className="text-xs font-bold text-dim tracking-wide font-mono">{invoiceId}</span>
                       </td>
                       {/* Amount */}
                       <td className="py-4 px-3">
-                        <span className={`text-sm font-extrabold ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                        <span className={`text-sm font-extrabold tabular-nums transition-all duration-200 group-hover:scale-105 inline-block ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                           {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                         </span>
                       </td>
                       {/* Status */}
                       <td className="py-4 px-3">
-                        <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg ${STATUS_STYLES[status]}`}>
+                        <span className={`px-2.5 py-1 text-[10px] font-extrabold rounded-lg inline-flex items-center transition-all duration-200 group-hover:scale-105 ${STATUS_STYLES[status]}`}>
+                          {STATUS_ICONS[status]}
                           {status}
                         </span>
                       </td>
                       {/* Actions */}
                       <td className="py-4 px-3 text-right">
                         {role === 'admin' ? (
-                          <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-x-2 group-hover:translate-x-0">
                             <button
                               onClick={() => openEdit(t)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-dim hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all"
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-dim hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all duration-200 hover:scale-110 hover:rotate-6"
                               title="Edit"
                             >
                               <Pencil size={13} />
                             </button>
                             <button
-                              onClick={() => deleteTransaction(t.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-dim hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all"
+                              onClick={() => handleDelete(t)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-dim hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all duration-200 hover:scale-110 hover:rotate-6"
                               title="Delete"
                             >
                               <Trash2 size={13} />
                             </button>
                           </div>
                         ) : (
-                          <button className="px-4 py-1.5 border border-border rounded-lg text-xs font-bold text-ink hover:bg-border/40 transition-colors">
+                          <button className="px-4 py-1.5 border border-border rounded-lg text-xs font-bold text-ink hover:bg-border/40 transition-all duration-200 hover:scale-105 active:scale-95">
                             Details
                           </button>
                         )}
@@ -458,14 +503,17 @@ export function Transactions() {
           </div>
 
           {/* ── Mobile Card List ── */}
-          <div className="md:hidden space-y-3">
+          <div key={listKey} className="md:hidden space-y-3 stagger-cards">
             {list.map((t) => {
               const status = getStatus(t.amount);
               const invoiceId = 'PMX' + t.id.slice(0, 5).toUpperCase();
               return (
-                <div key={t.id} className="bg-bg border border-border/60 rounded-2xl p-4 flex items-start gap-3">
+                <div
+                  key={t.id}
+                  className="bg-bg border border-border/60 rounded-2xl p-4 flex items-start gap-3 transition-all duration-200 hover:shadow-md hover:scale-[1.01] hover:border-border"
+                >
                   {/* Avatar */}
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-base font-bold ${t.type === 'income'
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 text-base font-bold transition-all duration-300 hover:scale-110 hover:rotate-3 ${t.type === 'income'
                       ? 'bg-brand/10 text-brand'
                       : 'bg-slate-100 text-slate-600 dark:bg-slate-800/80 dark:text-slate-300'
                     }`}>
@@ -477,16 +525,17 @@ export function Transactions() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="text-sm font-bold text-ink truncate">{t.description}</p>
-                        <p className="text-xs text-dim mt-0.5">{t.category} · {invoiceId}</p>
+                        <p className="text-xs text-dim mt-0.5">{t.category} · <span className="font-mono">{invoiceId}</span></p>
                       </div>
-                      <span className={`text-sm font-extrabold shrink-0 ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      <span className={`text-sm font-extrabold shrink-0 tabular-nums ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
                         {t.type === 'income' ? '+' : '-'}{formatCurrency(t.amount)}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between mt-2.5">
                       <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md ${STATUS_STYLES[status]}`}>
+                        <span className={`px-2 py-0.5 text-[10px] font-extrabold rounded-md inline-flex items-center ${STATUS_STYLES[status]}`}>
+                          {STATUS_ICONS[status]}
                           {status}
                         </span>
                         <span className="text-[10px] text-dim">
@@ -497,13 +546,13 @@ export function Transactions() {
                         <div className="flex gap-1.5">
                           <button
                             onClick={() => openEdit(t)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-surface border border-border text-dim hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-surface border border-border text-dim hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all duration-200 hover:scale-110"
                           >
                             <Pencil size={11} />
                           </button>
                           <button
-                            onClick={() => deleteTransaction(t.id)}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-surface border border-border text-dim hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all"
+                            onClick={() => handleDelete(t)}
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-surface border border-border text-dim hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-all duration-200 hover:scale-110"
                           >
                             <Trash2 size={11} />
                           </button>
@@ -518,7 +567,7 @@ export function Transactions() {
         </>
       )}
 
-      <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} />
+      <TransactionModal open={modalOpen} onClose={closeModal} editing={editing} onSuccess={toast} />
     </div>
   );
 }
